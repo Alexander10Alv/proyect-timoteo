@@ -1,0 +1,396 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  lastName      String?      @map("last_name")
+  email         String       @unique
+  passwordHash  String       @map("password_hash")
+  role          Role         @default(VISITOR)
+  country       String?
+  church        String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  subscription  Subscription?
+  newsletters   Subscriber[]  @relation("UserNewsletters")
+  courses       Course[]     @relation("CourseAuthor")
+  articles      Article[]
+  purchases     CoursePurchase[] @relation("PurchaseUser")
+
+  @@map("users")
+}
+
+model Course {
+  id            String        @id @default(cuid())
+  title         String
+  type          PostType
+  description   String
+  coverImage    String?       @map("cover_image")
+  createdById   String        @map("created_by")
+  createdBy     User          @relation("CourseAuthor", fields: [createdById], references: [id])
+  lessons       CourseLesson[]
+  modality      Modality?
+  location      String?
+  eventDate     DateTime?     @map("event_date")
+  meetingLink   String?       @map("meeting_link")
+  recordingLink String?       @map("recording_link")
+  pricePEN      Float?        @map("price_pen")
+  priceUSD      Float?        @map("price_usd")
+  capacity      Int?          @map("capacity")
+  purchases     CoursePurchase[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@map("courses")
+}
+
+enum Modality {
+  VIRTUAL
+  IN_PERSON
+  HYBRID
+}
+
+model CourseLesson {
+  id             String  @id @default(cuid())
+  courseId       String  @map("course_id")
+  course         Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  videoUrl       String  @map("video_url")
+  resourcesUrl   String? @map("resources_url")
+  durationSeconds Int?   @map("duration_seconds")
+  order          Int
+  resources      CourseResource[]
+
+  @@index([courseId, order])
+  @@map("course_lessons")
+}
+
+model CourseResource {
+  id       String       @id @default(cuid())
+  lessonId String       @map("lesson_id")
+  lesson   CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  name     String
+  url      String
+
+  @@index([lessonId])
+  @@map("course_resources")
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email           String
+  phone           String?
+  receiveWhatsApp Boolean  @default(false) @map("receive_whatsapp")
+  receiveEmail    Boolean  @default(true)  @map("receive_email")
+  enrolledCourses String   @default("[]")  @map("enrolled_courses")
+  status          SubscriptionStatus @default(ACTIVE)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt      @map("updated_at")
+
+  @@unique([userId])
+  @@map("subscriptions")
+}
+
+model Donation {
+  id               String   @id @default(cuid())
+  donorName        String   @map("donor_name")
+  donorEmail       String   @map("donor_email")
+  amount           Float
+  currency         String   @default("USD")
+  targetCountryId  String?  @map("target_country_id")
+  status           DonationStatus @default(PENDING)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt      @map("updated_at")
+
+  @@map("donations")
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+/// Inscripciones/pagos de Charlas y Eventos (online o manual en efectivo).
+/// Una fila = un pago (o inscripción gratis). La lista de la puerta presencial
+/// se construye desde aquí (marcando `attended`).
+model CoursePurchase {
+  id            String         @id @default(cuid())
+  courseId      String         @map("course_id")
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId        String?        @map("user_id")
+  user          User?          @relation("PurchaseUser", fields: [userId], references: [id], onDelete: SetNull)
+  name          String
+  email         String
+  amount        Float          @default(0)
+  currency      String         @default("PEN")
+  // CARD | PAYPAL | MANUAL | FREE
+  method        String         @default("PAYPAL")
+  transactionId String?        @map("transaction_id")
+  status        PurchaseStatus @default(COMPLETED)
+  attended      Boolean        @default(false) @map("attended")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@index([courseId])
+  @@index([email])
+  @@map("course_purchases")
+}
+
+// ═══════════════════════════════════════════════════════
+// ESTRUCTURA COMPLETA JOSHUA PROJECT
+// ═══════════════════════════════════════════════════════
+
+model Country {
+  countryCode           String   @id @map("country_code") // ISO 2 letras, ej. "PE"
+  countryName           String   @map("country_name")
+  totalPeopleGroups     Int      @map("total_people_groups")
+  unreachedPeopleGroups Int      @map("unreached_people_groups")
+  unreachedPct          Float    @map("unreached_pct")
+  frontierPeopleGroups  Int      @map("frontier_people_groups")
+  frontierPct           Float    @map("frontier_pct")
+  totalPopulation       BigInt   @map("total_population")
+  unreachedPopulation   BigInt   @map("unreached_population")
+  frontierPopulation    BigInt   @map("frontier_population")
+  christianAdherentsPct Float    @map("christian_adherents_pct")
+  evangelicalPct        Float    @map("evangelical_pct")
+  flagUrl               String?  @map("flag_url")
+  heroImage             String?  @map("hero_image")
+  peopleGroups          PeopleGroup[]
+  provinces             Province[]
+  ministries            Ministry[]
+  missionaries          Missionary[]
+
+  @@map("country")
+}
+
+model PeopleGroup {
+  id                  String  @id @default(cuid())
+  peopCode            String  @unique @map("peop_code") // ej. "PEJ01"
+  countryCode         String  @map("country_code")
+  country             Country @relation(fields: [countryCode], references: [countryCode], onDelete: Cascade)
+  peopleName          String  @map("people_name")
+  populationInCountry Int     @map("population_in_country")
+  populationGlobal    BigInt? @map("population_global")
+  isUnreached         Boolean @default(false) @map("is_unreached")
+  isFrontier          Boolean @default(false) @map("is_frontier")
+  isIndigenous        Boolean @default(false) @map("is_indigenous")
+  isDiaspora          Boolean @default(false) @map("is_diaspora")
+  primaryLanguage     String  @map("primary_language")
+  primaryLanguageCode String? @map("primary_language_code")
+  language            Language? @relation(fields: [primaryLanguageCode], references: [languageCode], onDelete: SetNull)
+  primaryReligion     String  @map("primary_religion")
+  evangelicalPct      Float?  @map("evangelical_pct")
+  percentAdherents    Float?  @map("percent_adherents")
+  progressScale       Float?  @map("progress_scale") // JPScale oficial 1-5 de progreso de evangelización
+  workersNeeded       Int?    @map("workers_needed")
+  countOfCountries    Int?    @map("count_of_countries")
+  provinceRegion      String? @map("province_region")
+  description         String?
+  photoUrl            String? @map("photo_url")
+  latitude            Float?  @map("latitude")
+  longitude           Float?  @map("longitude")
+  missionaries        Missionary[]
+
+  @@index([countryCode])
+  @@index([isUnreached])
+  @@map("people_group")
+}
+
+model Province {
+  provinceId     String  @id @map("province_id") // ej. "IN.UP"
+  provinceName   String  @map("province_name")
+  countryCode    String  @map("country_code")
+  country        Country @relation(fields: [countryCode], references: [countryCode], onDelete: Cascade)
+  population     BigInt? @map("population")
+  unreachedCount Int?    @map("unreached_count")
+
+  @@index([countryCode])
+  @@map("province")
+}
+
+enum BibleStatus {
+  FULL_BIBLE
+  NEW_TESTAMENT
+  PORTIONS
+  NONE
+  UNSPECIFIED
+}
+
+model Language {
+  languageCode         String      @id @map("language_code") // ISO 639-3, ej. "acu"
+  languageName         String      @map("language_name")     // ej. "Achuar-Shiwiar"
+  primaryGroupsCount   Int         @map("primary_groups_count")
+  unreachedGroupsCount Int         @map("unreached_groups_count")
+  bibleStatus          BibleStatus @default(UNSPECIFIED) @map("bible_status")
+  peopleGroups         PeopleGroup[]
+
+  @@map("language")
+}
+
+model Ministry {
+  id           Int     @id @default(autoincrement())
+  ministryName String  @map("ministry_name")
+  ministryType String? @map("ministry_type")
+  countryCode  String? @map("country_code")
+  country      Country? @relation(fields: [countryCode], references: [countryCode], onDelete: SetNull)
+  peopCode     String? @map("peop_code") // referencia flexible a PeopleGroup
+  contactInfo  String? @map("contact_info")
+
+  @@index([countryCode])
+  @@index([peopCode])
+  @@map("ministry")
+}
+
+enum MissionaryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Missionary {
+  id          Int              @id @default(autoincrement())
+  name        String
+  role        String?
+  slug        String           @unique
+  bio         String?          @db.Text
+  photoUrl    String?          @map("photo_url")
+  videoUrl    String?          @map("video_url")
+  status      MissionaryStatus @default(ACTIVE)
+  countryCode String?          @map("country_code")
+  country     Country?         @relation(fields: [countryCode], references: [countryCode], onDelete: SetNull)
+  peopCode    String?          @map("peop_code")
+  peopleGroup PeopleGroup?     @relation(fields: [peopCode], references: [peopCode], onDelete: SetNull)
+  stories     MissionaryStory[]
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([countryCode])
+  @@index([peopCode])
+  @@map("missionary")
+}
+
+model MissionaryStory {
+  id           Int        @id @default(autoincrement())
+  missionaryId Int        @map("missionary_id")
+  missionary   Missionary @relation(fields: [missionaryId], references: [id], onDelete: Cascade)
+  title        String
+  body         String     @db.Text
+  storyDate    DateTime?  @map("story_date")
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([missionaryId])
+  @@map("missionary_story")
+}
+
+enum Role {
+  ADMIN
+  VISITOR
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PENDING
+  INACTIVE
+}
+
+enum PostType {
+  COURSE
+  TALK
+  EVENT
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+model Category {
+  id     String   @id @default(cuid())
+  name   String
+  slug   String   @unique
+  active Boolean  @default(true)
+  articles Article[]
+
+  @@map("categories")
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique @map("slug")
+  excerpt     String?       @db.Text @map("excerpt")
+  coverImage  String?       @map("cover_image")
+  content     String        @db.LongText @default("")
+  status      ArticleStatus @default(DRAFT)
+  publishedAt DateTime?     @map("published_at")
+  createdById String?       @map("created_by")
+  createdBy   User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  category    Category?     @relation(fields: [categoryId], references: [id])
+  categoryId  String?
+  tags        String        @default("[]") @map("tags")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@map("articles")
+  @@index([slug])
+  @@index([status])
+  @@index([categoryId])
+}
+
+model Subscriber {
+  id             String            @id @default(cuid())
+  userId         String?           @unique @map("user_id")
+  user           User?             @relation("UserNewsletters", fields: [userId], references: [id])
+  firstName      String?           @map("first_name")
+  lastName       String?           @map("last_name")
+  email          String?           @unique @map("email")
+  phone          String?           @map("phone")
+  church         String?           @map("church")
+  country        String?           @map("country")
+  subscribedAt   DateTime          @default(now()) @map("subscribed_at")
+  status         SubscriberStatus  @default(ACTIVE)
+  unsubscribedAt DateTime?         @map("unsubscribed_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@map("subscribers")
+}
+
+model SiteConfig {
+  id         Int      @id @default(1)
+  siteName   String   @default("Proyecto Timoteo") @map("site_name")
+  homeConfig Json     @default("{}") @map("home_config")
+  themeConfig Json    @default("{}") @map("theme_config")
+  footerConfig Json   @default("{}") @map("footer_config")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("site_config")
+}

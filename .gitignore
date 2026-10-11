@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+dist
+.env*.local
+.env
+*.tsbuildinfo
+next-env.d.ts
+/uploads
+
+.wwebjs_auth
+.wwebjs_cache
+auth_info*
+
+backups
+*.log
