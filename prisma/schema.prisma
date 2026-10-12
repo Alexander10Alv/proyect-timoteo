@@ -348,7 +348,7 @@ model Article {
   slug        String        @unique @map("slug")
   excerpt     String?       @db.Text @map("excerpt")
   coverImage  String?       @map("cover_image")
-  content     String        @db.LongText @default("")
+  content     String        @db.LongText
   status      ArticleStatus @default(DRAFT)
   publishedAt DateTime?     @map("published_at")
   createdById String?       @map("created_by")
