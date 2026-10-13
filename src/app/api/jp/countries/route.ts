@@ -6,6 +6,8 @@ import { serializeJpCountry } from '@/lib/jpSerializer';
  * GET /api/jp/countries
  * Lista todos los países de la estructura completa Joshua Project.
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const countries = await prisma.country.findMany({

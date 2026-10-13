@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma';
  * Lista todos los usuarios con su suscripción (para el Centro de Usuarios del admin).
  * Excluye siempre el hash de contraseña.
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
